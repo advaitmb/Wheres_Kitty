@@ -96,7 +96,6 @@ void instruction() {
 }
 
 void setup() {
-
   //Wifi stuff
   Serial.begin(115200);
   Serial.println();
@@ -118,12 +117,10 @@ void setup() {
     Serial.println("connected");
   }
 
-
   //IR stuff
   pinMode(IRemitter, OUTPUT); // IR emitter LED on digital pin 2
   digitalWrite(IRemitter, LOW); // setup IR LED as off
   distance = readIR(5); // Distance from ground with accuracy 5
-
 
   //engage button
   pinMode(engage_switch, INPUT);
@@ -134,13 +131,9 @@ void setup() {
   //music stuff
 
   myDFPlayer.volume(10);  //Set volume value. From 0 to 30
-
 }
 
-
-void loop()
-{
-
+void loop() {
   //conditions and modes
   engagemode = digitalRead(engage_switch);
   if (engagemode == HIGH) {
@@ -166,16 +159,3 @@ void loop()
     delay(10000000);
   }
 }
-//4 main parts
-
-//checking for mode: engaged or disengaged
-//if engaged: play meow
-//checking for condition: lifted or kept-down
-//playing instructions
-//tiggering
-//disengage
-
-//tech parts:
-//DFPlayer
-//IR sensing
-//Serial shit
