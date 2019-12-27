@@ -1,11 +1,18 @@
+//28 dec: things to finish
+//  1. Test and debug triggering using switch and led
+//  2. Write code for catpaw2, catpaw3 and cat
+//  3. Test and switch triggering and full system by assembling things on breadboard
+//  4. Check if anything else is left
 
-//27 dec: things to finish
-//  1. DFPlayer setup and integration
-//  2. IRSensor setup and integration
-//  3. Check if anything else is left
 
+// sd:/mp3/0001.mp3 = meow
+// sd:/mp3/0002.mp3 = instruction
+#include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
-//#include <DFMiniMp3.h>
+#include <DFRobotDFPlayerMini.h>
+
+//escape
+int escape = 0;
 
 //engage
 int engage_switch = 3;
@@ -22,6 +29,10 @@ int obstacleIR;               // variable to store the IR coming from the object
 int value[10];                // variable to store the IR values
 int distance;                 // variable that will tell if there is an obstacle or not
 
+//music stuff
+SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
+DFRobotDFPlayerMini myDFPlayer;
+void printDetail(uint8_t type, int value);
 
 //Wifi stuff
 char ssid[] = "Bhat Home";          //  your network SSID (name)
@@ -38,8 +49,10 @@ int countRec = 0;
 
 //functions
 bool activated() {
-  //read server
-  //if there is activate, return true
+  String code = client.readStringUntil('\n');
+  if (code == "activate") {
+    return true;
+  }
 }
 
 bool lifted(int threshhold) {
@@ -71,13 +84,18 @@ int readIR(int times) {
   return (distance / times);         // return the final value
 }
 
+//Music functions
+void meow() {
+  myDFPlayer.play(1);
+  Serial.print("Meow");
+}
 
-
-
+void instruction() {
+  myDFPlayer.play(2);
+  Serial.print("Instruction");
+}
 
 void setup() {
-
-
   //Wifi stuff
   Serial.begin(115200);
   Serial.println();
@@ -99,54 +117,45 @@ void setup() {
     Serial.println("connected");
   }
 
-
   //IR stuff
   pinMode(IRemitter, OUTPUT); // IR emitter LED on digital pin 2
   digitalWrite(IRemitter, LOW); // setup IR LED as off
   distance = readIR(5); // Distance from ground with accuracy 5
 
-
   //engage button
   pinMode(engage_switch, INPUT);
 
   //Output
-  pinMode(11, OUTPUT);        // buzzer in digital pin 11
+  //pinMode(11, OUTPUT);        // buzzer in digital pin 11
 
+  //music stuff
 
-
+  myDFPlayer.volume(10);  //Set volume value. From 0 to 30
 }
 
-
-void loop()
-{
-
+void loop() {
   //conditions and modes
   engagemode = digitalRead(engage_switch);
   if (engagemode == HIGH) {
     if (activated()) {
       if (lifted(trigger_threshhold)) //lifted condition to be apecified in the IR part
       {
-        //play instruction
+        instruction();
         delay(7000);
         trigger();//trigger funstion to be defined
+        delay(2000);
+        escape = 1; //i think this is smart
+        // break;//might work, will have to confirm
+        //slightly doubtful about if it is kept lifted, it can trigger multiple triggers and can keep repeating instructions
       }
       else {
-        //play meow
+        meow();
         delay(3000);
       }
     }
   }
+  while (escape = 1) {
+    Serial.println("I am out");
+    delay(10000000);
+  }
 }
-//4 main parts
-
-//checking for mode: engaged or disengaged
-//if engaged: play meow
-//checking for condition: lifted or kept-down
-//playing instructions
-//tiggering
-//disengage
-
-//tech parts:
-//DFPlayer
-//IR sensing
-//Serial shit
