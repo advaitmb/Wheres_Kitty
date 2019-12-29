@@ -1,9 +1,9 @@
+
 //28 dec: things to finish
 //  1. Test and debug triggering using switch and led
 //  2. Write code for catpaw2, catpaw3 and cat
 //  3. Test and switch triggering and full system by assembling things on breadboard
 //  4. Check if anything else is left
-
 
 // sd:/mp3/0001.mp3 = meow
 // sd:/mp3/0002.mp3 = instruction
@@ -22,15 +22,11 @@ int engagemode;
 int trigger_threshhold;
 
 //IR sensor stuff
-int IRpin = A0;               // IR photodiode on analog pin A0
-int IRemitter = 2;            // IR emitter LED on digital pin 2
-int ambientIR;                // variable to store the IR coming from the ambient
-int obstacleIR;               // variable to store the IR coming from the object
-int value[10];                // variable to store the IR values
-int distance;                 // variable that will tell if there is an obstacle or not
+int IRpin = A0;  // IR photodiode on analog pin A0
+int distance = analogRead(IRpin);
 
 //music stuff
-SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
+SoftwareSerial mySoftwareSerial(1 , 2); // RX, TX
 DFRobotDFPlayerMini myDFPlayer;
 void printDetail(uint8_t type, int value);
 
@@ -39,8 +35,8 @@ char ssid[] = "Bhat Home";          //  your network SSID (name)
 char pass[] = "flashbhat";   // your network password
 
 int status = WL_IDLE_STATUS;
-IPAddress server(192, 168, 0, 104);
-int port = 8081;
+IPAddress server(192, 168, 0, 103);
+const uint16_t port = 8080;
 
 // Initialize the client library
 WiFiClient client;
@@ -50,7 +46,7 @@ int countRec = 0;
 //functions
 bool activated() {
   String code = client.readStringUntil('\n');
-  if (code == "activate") {
+  if (code == "a") {
     return true;
   }
 }
@@ -66,23 +62,6 @@ void trigger() {
   delay(1000);
 }
 
-//function to read distance from ground
-int readIR(int times) {
-  for (int x = 0; x < times; x++) {
-    digitalWrite(IRemitter, LOW);          // turning the IR LEDs off to read the IR coming from the ambient
-    delay(1);                                             // minimum delay necessary to read values
-    ambientIR = analogRead(IRpin);  // storing IR coming from the ambient
-    digitalWrite(IRemitter, HIGH);         // turning the IR LEDs on to read the IR coming from the obstacle
-    delay(1);                                             // minimum delay necessary to read values
-    obstacleIR = analogRead(IRpin);  // storing IR coming from the obstacle
-    value[x] = ambientIR - obstacleIR; // calculating changes in IR values and storing it for future average
-  }
-
-  for (int x = 0; x < times; x++) { // calculating the average based on the "accuracy"
-    distance += value[x];
-  }
-  return (distance / times);         // return the final value
-}
 
 //Music functions
 void meow() {
@@ -96,6 +75,7 @@ void instruction() {
 }
 
 void setup() {
+
   //Wifi stuff
   Serial.begin(115200);
   Serial.println();
@@ -103,12 +83,14 @@ void setup() {
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  Serial.println(WiFi.status());
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("\nStarting connection...");
@@ -116,11 +98,8 @@ void setup() {
   if (client.connect(server, port)) {
     Serial.println("connected");
   }
-
-  //IR stuff
-  pinMode(IRemitter, OUTPUT); // IR emitter LED on digital pin 2
-  digitalWrite(IRemitter, LOW); // setup IR LED as off
-  distance = readIR(5); // Distance from ground with accuracy 5
+  
+  int trigger_threshhold = 50;
 
   //engage button
   pinMode(engage_switch, INPUT);
@@ -131,12 +110,16 @@ void setup() {
   //music stuff
 
   myDFPlayer.volume(10);  //Set volume value. From 0 to 30
+
 }
 
-void loop() {
+
+void loop()
+{
+
   //conditions and modes
   engagemode = digitalRead(engage_switch);
-  if (engagemode == HIGH) {
+  while (engagemode == HIGH) {
     if (activated()) {
       if (lifted(trigger_threshhold)) //lifted condition to be apecified in the IR part
       {
