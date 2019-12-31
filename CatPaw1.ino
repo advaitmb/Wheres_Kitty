@@ -1,161 +1,186 @@
-//28 dec: things to finish
-//  1. Test and debug triggering using switch and led
-//  2. Write code for catpaw2, catpaw3 and cat
-//  3. Test and switch triggering and full system by assembling things on breadboard
-//  4. Check if anything else is left
-
-
-// sd:/mp3/0001.mp3 = meow
-// sd:/mp3/0002.mp3 = instruction
 #include <SoftwareSerial.h>
 #include <ESP8266WiFi.h>
-#include <DFRobotDFPlayerMini.h>
+#include <DFMiniMp3.h>
 
-//escape
-int escape = 0;
+class Mp3Notify
+{
+  public:
+    static void OnError(uint16_t errorCode)
+    {
+      // see DfMp3_Error for code meaning
+      Serial.println();
+      Serial.print("Com Error ");
+      Serial.println(errorCode);
+    }
 
-//engage
-int engage_switch = 3;
-int engagemode;
+    static void OnPlayFinished(uint16_t globalTrack)
+    {
+      Serial.println();
+      Serial.print("Play finished for #");
+      Serial.println(globalTrack);
+    }
 
-//trigger
-int trigger_threshhold;
+    static void OnCardOnline(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("Card online ");
+      Serial.println(code);
+    }
 
-//IR sensor stuff
-int IRpin = A0;               // IR photodiode on analog pin A0
-int IRemitter = 2;            // IR emitter LED on digital pin 2
-int ambientIR;                // variable to store the IR coming from the ambient
-int obstacleIR;               // variable to store the IR coming from the object
-int value[10];                // variable to store the IR values
-int distance;                 // variable that will tell if there is an obstacle or not
+    static void OnUsbOnline(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("USB Disk online ");
+      Serial.println(code);
+    }
 
-//music stuff
-SoftwareSerial mySoftwareSerial(10, 11); // RX, TX
-DFRobotDFPlayerMini myDFPlayer;
-void printDetail(uint8_t type, int value);
+    static void OnCardInserted(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("Card inserted ");
+      Serial.println(code);
+    }
 
-//Wifi stuff
-char ssid[] = "Bhat Home";          //  your network SSID (name)
+    static void OnUsbInserted(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("USB Disk inserted ");
+      Serial.println(code);
+    }
+
+    static void OnCardRemoved(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("Card removed ");
+      Serial.println(code);
+    }
+
+    static void OnUsbRemoved(uint16_t code)
+    {
+      Serial.println();
+      Serial.print("USB Disk removed ");
+      Serial.println(code);
+    }
+};
+
+SoftwareSerial secondarySerial(D6, D7); // RX, TX
+DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
+
+char ssid[] = "Bhat Home";    //  your network SSID (name)
 char pass[] = "flashbhat";   // your network password
 
 int status = WL_IDLE_STATUS;
-IPAddress server(192, 168, 0, 104);
-int port = 8081;
+IPAddress server(192, 168, 0, 107);
+const uint16_t port = 8081;
 
 // Initialize the client library
 WiFiClient client;
 
-int countRec = 0;
 
-//functions
-bool activated() {
-  String code = client.readStringUntil('\n');
-  if (code == "activate") {
-    return true;
-  }
-}
-
-bool lifted(int threshhold) {
-  if (distance > threshhold) {
-    return true;
-  }
-}
-
-void trigger() {
-  client.write("1");
-  delay(1000);
-}
-
-//function to read distance from ground
-int readIR(int times) {
-  for (int x = 0; x < times; x++) {
-    digitalWrite(IRemitter, LOW);          // turning the IR LEDs off to read the IR coming from the ambient
-    delay(1);                                             // minimum delay necessary to read values
-    ambientIR = analogRead(IRpin);  // storing IR coming from the ambient
-    digitalWrite(IRemitter, HIGH);         // turning the IR LEDs on to read the IR coming from the obstacle
-    delay(1);                                             // minimum delay necessary to read values
-    obstacleIR = analogRead(IRpin);  // storing IR coming from the obstacle
-    value[x] = ambientIR - obstacleIR; // calculating changes in IR values and storing it for future average
-  }
-
-  for (int x = 0; x < times; x++) { // calculating the average based on the "accuracy"
-    distance += value[x];
-  }
-  return (distance / times);         // return the final value
-}
-
-//Music functions
-void meow() {
-  myDFPlayer.play(1);
-  Serial.print("Meow");
-}
-
-void instruction() {
-  myDFPlayer.play(2);
-  Serial.print("Instruction");
-}
+uint16_t IRpin = D4;  // IR photodiode on analog pin D4
+int engage = D3;
+int escape;
+int activated;
 
 void setup() {
-  //Wifi stuff
+
+  escape = 0;
+  activated = 0;
+
+  pinMode(engage, INPUT);
+  pinMode(IRpin, INPUT);
+  digitalWrite(engage, HIGH);
+
   Serial.begin(115200);
+
+  Serial.println("initializing...");
+
+  mp3.begin();
+
+  uint16_t volume = mp3.getVolume();
+  Serial.print("volume ");
+  Serial.println(volume);
+  mp3.setVolume(24);
+
+  uint16_t count = mp3.getTotalTrackCount();
+  Serial.print("files ");
+  Serial.println(count);
+
+  Serial.println("starting...");
+
+
+  //Wifi stuff
   Serial.println();
   Serial.println();
   Serial.print("Connecting to ");
   Serial.println(ssid);
 
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, pass);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
+  Serial.println(WiFi.status());
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("\nStarting connection...");
   // if you get a connection, report back via serial:
-  if (client.connect(server, port)) {
+  if (client.connect(server, port))
     Serial.println("connected");
-  }
-
-  //IR stuff
-  pinMode(IRemitter, OUTPUT); // IR emitter LED on digital pin 2
-  digitalWrite(IRemitter, LOW); // setup IR LED as off
-  distance = readIR(5); // Distance from ground with accuracy 5
-
-  //engage button
-  pinMode(engage_switch, INPUT);
-
-  //Output
-  //pinMode(11, OUTPUT);        // buzzer in digital pin 11
-
-  //music stuff
-
-  myDFPlayer.volume(10);  //Set volume value. From 0 to 30
 }
 
-void loop() {
-  //conditions and modes
-  engagemode = digitalRead(engage_switch);
-  if (engagemode == HIGH) {
-    if (activated()) {
-      if (lifted(trigger_threshhold)) //lifted condition to be apecified in the IR part
-      {
-        instruction();
-        delay(7000);
-        trigger();//trigger funstion to be defined
-        delay(2000);
-        escape = 1; //i think this is smart
-        // break;//might work, will have to confirm
-        //slightly doubtful about if it is kept lifted, it can trigger multiple triggers and can keep repeating instructions
+void waitMilliseconds(uint16_t msWait)
+{
+  uint32_t start = millis();
+
+  while ((millis() - start) < msWait)
+  {
+    // calling mp3.loop() periodically allows for notifications
+    // to be handled without interrupts
+    mp3.loop();
+    delay(1);
+  }
+}
+
+void loop()
+{
+  //Enagage
+  while (!digitalRead(engage))
+  {
+    Serial.println("engaged");
+
+
+    if (escape == 0) {
+
+      //Activate
+      String code = client.readStringUntil('\n');
+      Serial.println(code);
+      if ( code == "a") {
+        activated = 1;
       }
-      else {
-        meow();
-        delay(3000);
+
+      if (activated == 1) {
+        //Meow
+        Serial.println("meow");
+        mp3.playMp3FolderTrack(2);  // sd:/mp3/0002.mp3
+        //IR Read
+
+        if (!digitalRead(IRpin))
+        {
+          mp3.playMp3FolderTrack(1);  // sd:/mp3/0001.mp3
+          client.write(2);
+          Serial.println("f");
+          delay(100);
+          escape = 1;
+        }
+        delay(10);
       }
+      delay(10);
     }
+    delay(10);
   }
-  while (escape = 1) {
-    Serial.println("I am out");
-    delay(10000000);
-  }
+  delay(10);
 }
+
