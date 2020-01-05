@@ -63,14 +63,14 @@ class Mp3Notify
     }
 };
 
-SoftwareSerial secondarySerial(D6, D7); // RX, TX
+SoftwareSerial secondarySerial(D7, D6); // RX, TX
 DFMiniMp3<SoftwareSerial, Mp3Notify> mp3(secondarySerial);
 
 char ssid[] = "Bhat Home";    //  your network SSID (name)
 char pass[] = "flashbhat";   // your network password
 
 int status = WL_IDLE_STATUS;
-IPAddress server(192, 168, 0, 107);
+IPAddress server(192, 168, 0, 110);
 const uint16_t port = 8080;
 
 // Initialize the client library
