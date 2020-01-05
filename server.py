@@ -9,7 +9,7 @@ print(client)
 port = 8080
 for i in range(NUM_CONS):
     catpaw[i] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    catpaw[i].bind(('192.168.0.107', port))
+    catpaw[i].bind(('192.168.43.189', port))
     catpaw[i].listen(0)
     port += 1
 
